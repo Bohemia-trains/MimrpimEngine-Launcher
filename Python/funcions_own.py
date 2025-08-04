@@ -1,3 +1,4 @@
+# funcions_own.py
 import os
 import requests
 from urllib.parse import urlparse
@@ -30,6 +31,8 @@ class Logger(object):
         self.terminal = sys.stdout # Uložíme původní standardní výstup (konzoli)
         self._original_stdout = sys.stdout # Reference na původní stdout pro obnovení
         self.log_suffix = log_suffix # Uložíme příponu pro název logu (např. "_console-launcher" nebo "_gui-launcher")
+        self.log = None # Inicializujeme self.log na None, dokud není soubor úspěšně otevřen
+        self.log_file_path = None # Cesta k logovacímu souboru
 
         # Vytvoření názvu souboru s datem a časem pro aktuální log
         now_init = datetime.datetime.now()
@@ -46,9 +49,8 @@ class Logger(object):
                 self.terminal.write(f"{GREEN}Vytvořena složka pro logy: '{self.log_dir}'{RESET}\n")
             except Exception as e:
                 self.terminal.write(f"{RED}Chyba při vytváření složky pro logy '{self.log_dir}': {e}{RESET}\n")
-                self.log = None
-                self.log_file_path = None
-                return
+                # Pokud se nepodaří vytvořit složku, logovací soubor se neotevře
+                return # Ukončíme inicializaci, log nebude k dispozici
 
         # Sestavení kompletní cesty k logovacímu souboru
         self.log_file_path = os.path.join(self.log_dir, log_filename)
@@ -58,13 +60,16 @@ class Logger(object):
             self.terminal.write(f"{BLUE}Logování přesměrováno do souboru: '{self.log_file_path}'{RESET}\n")
         except Exception as e:
             self.terminal.write(f"{RED}Chyba při otevírání logovacího souboru '{self.log_file_path}': {e}{RESET}\n")
-            self.log = None
+            self.log = None # Zajistíme, že self.log je None, pokud se soubor neotevře
 
         # Po inicializaci nového logu zkomprimujeme a archivujeme staré logy
-        self._compress_and_archive_old_logs()
+        # Tuto funkci voláme pouze, pokud se logovací soubor úspěšně otevřel
+        if self.log:
+            self._compress_and_archive_old_logs()
 
     def write(self, message):
         self.terminal.write(message) # Zapisujeme do konzole (s barvami)
+        # Zapisujeme do souboru pouze, pokud self.log není None a soubor není uzavřen
         if self.log and not self.log.closed:
             # Odstranění ANSI escape kódů před zápisem do souboru
             clean_message = re.sub(r'\x1b\[[0-9;]*m', '', message)
@@ -72,6 +77,7 @@ class Logger(object):
 
     def flush(self):
         self.terminal.flush()
+        # Vyprázdnění souboru pouze, pokud self.log není None a soubor není uzavřen
         if self.log and not self.log.closed:
             self.log.flush()
 
@@ -259,7 +265,7 @@ def download_file_with_progress(url, filename):
         block_size = 1024
 
         if total_size_in_bytes == 0:
-            print(f"{YELLOW}Varování: Nelze zjistit celkovou velikost souboru '{filename}' z hlaviček. Progress bar nebude zobrazovat procenta dokončení.{RESET}")
+            print(f"{YELLOW}Varování: Nelze zjistit celkovou velikost souboru '{os.path.basename(filename)}' z hlaviček. Progress bar nebude zobrazovat procenta dokončení.{RESET}")
 
         with tqdm(total=total_size_in_bytes, unit='iB', unit_scale=True, desc=f"Stahuji {os.path.basename(filename)}") as progress_bar:
             with open(filename, 'wb') as file:
@@ -317,6 +323,7 @@ def update1(soubor_s_url: str, cilova_slozka: str):
 
             print(f"{CYAN}Stahuji soubor {i+1}/{len(urls)}: '{url}' do '{cesta_k_souboru}'...{RESET}")
 
+            # Použijeme download_file_with_progress pro každý soubor v seznamu
             download_file_with_progress(url, cesta_k_souboru)
 
             stazeno_uspesne += 1
