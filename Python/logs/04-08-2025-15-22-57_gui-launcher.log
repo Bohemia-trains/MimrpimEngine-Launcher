@@ -1,0 +1,31 @@
+Původní aktuální pracovní adresář (CWD): C:\Users\mimrp\Desktop\g
+Zjištěný kořenový adresář aplikace (kde je skript/exe): c:\Users\mimrp\Desktop\g
+Aktuální pracovní adresář (CWD) změněn na: C:\Users\mimrp\Desktop\g
+
+--- Pokračování programu ---
+Program nyní pracuje v adresáři: C:\Users\mimrp\Desktop\g
+Konfigurace načtena: {'path_game': 'Game/', 'platform_version': 'Win32', 'game_version': 'a0.0.2'}
+Ikona okna načtena z: C:\Users\mimrp\Desktop\g\icon.ico
+Načítám obsah changelogu z: https://raw.githubusercontent.com/Bohemia-trains/MimrpimEngine-Download/refs/heads/main/launcher/changelog.md
+Changelog načten.
+Tlačítko 'Nastavení' vytvořeno.
+Checkbox 'Force Install' vytvořen.
+Tlačítko Play/Install vytvořeno.
+Popisek 'Vyberte verzi:' vytvořen.
+Dropdown pro výběr platformy vytvořen.
+Kontroluji verzi hry... Lokální: a0.0.2, Vzdálená: a0.0.2
+Verze hry je aktuální. Tlačítko nastaveno na 'Play'.
+Kontroluji verzi hry... Lokální: a0.0.2, Vzdálená: a0.0.2
+Force Install je aktivní. Tlačítko nastaveno na 'Install (Force)'.
+Kontroluji verzi hry... Lokální: a0.0.2, Vzdálená: a0.0.2
+Verze hry je aktuální. Tlačítko nastaveno na 'Play'.
+Konfigurace úspěšně uložena do 'C:\Users\mimrp\Desktop\g\config\config.json'.
+Cesta ke hře uložena: Game/
+Konfigurace úspěšně uložena do 'C:\Users\mimrp\Desktop\g\config\config.json'.
+Platform version changed to: Win32
+Konfigurace úspěšně uložena do 'C:\Users\mimrp\Desktop\g\config\config.json'.
+Cesta ke hře uložena: Game/MimrpimEngine
+Kontroluji verzi hry... Lokální: a0.0.2, Vzdálená: a0.0.2
+Force Install je aktivní. Tlačítko nastaveno na 'Install (Force)'.
+Vytvořena složka pro hru: C:\Users\mimrp\Desktop\g\Game/MimrpimEngine
+Spouštím externí příkaz: C:\Users\mimrp\Desktop\g\force_start.exe
