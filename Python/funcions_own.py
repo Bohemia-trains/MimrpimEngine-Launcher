@@ -17,6 +17,7 @@ YELLOW = "\033[33m"   # Pro varování, uživatelský vstup, důležité informa
 BLUE = "\033[34m"     # Pro obecné informace, úvodní zprávy
 CYAN = "\033[36m"     # Pro debugovací zprávy
 GREY = "\033[90m"     # Pro méně důležité, "tiché" zprávy
+print (f"{BLUE}-=- Funcions Own -=-{RESET}")
 
 # Počet dní, po kterých budou logy komprimovány a archivovány
 # Pokud je nastaveno na 0, archivují se všechny logy kromě aktuálně otevřeného.
@@ -330,3 +331,4 @@ def update1(soubor_s_url: str, cilova_slozka: str):
     print(f"\n{BLUE}--- Stahování obsahu seznamu dokončeno ---{RESET}")
     print(f"{GREEN}Celkem staženo úspěšně: {stazeno_uspesne}{RESET}")
     print(f"{RED}Celkem selhalo: {stazeno_selhalo}{RESET}")
+print(f"{BLUE}-=- End of Funcions Own -=-{RESET}")
