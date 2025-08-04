@@ -28,6 +28,7 @@ If applicable, add screenshots to help explain your problem.
 **Desktop (please complete the following information):**
  - OS: [e.g. iOS]
  - Version [e.g. 22]
+- Type [e.g. GUI or Console]
 
 **Additional context**
 Add any other context about the problem here.
