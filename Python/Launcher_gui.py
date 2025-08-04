@@ -7,10 +7,10 @@ import markdown
 from html.parser import HTMLParser
 import json
 import os
-# Importujeme všechny potřebné funkce a třídu Logger z funcions_own
+import threading # Nový import pro práci s vlákny
 from funcions_own import Logger, get_application_root, save_config, load_config
 
-# Konstanty pro barvy (zopakované zde pro přímé použití v tomto souboru)
+# Konstanty pro barvy (OPRAVENO: RED bylo "\031m", má být "\033[31m")
 RESET = "\033[0m"
 RED = "\033[31m"      # Pro chyby
 GREEN = "\033[32m"    # Pro úspěšné operace, dokončení
@@ -21,7 +21,21 @@ GREY = "\033[90m"     # Pro méně důležité, "tiché" zprávy
 
 # --- Nastavení logování do souboru pro GUI ---
 # Přesměrujeme sys.stdout na naši instanci Loggeru s příponou "_gui-launcher"
-sys.stdout = Logger(log_suffix="_gui-launcher")
+# Zde je klíčové, že Logger musí být inicializován robustně.
+# Pokud Logger selže, sys.stdout zůstane původní, aby se chyby vypsaly do konzole.
+try:
+    gui_logger = Logger(log_suffix="_gui-launcher")
+    # Pouze pokud se Logger úspěšně inicializoval, přesměrujeme sys.stdout
+    if gui_logger.is_initialized_successfully:
+        sys.stdout = gui_logger
+    else:
+        # Pokud se Logger nepodařilo inicializovat, zůstaneme u původního sys.stdout
+        # a vypíšeme varování do konzole (původní sys.stdout)
+        print(f"{RED}Varování: Logování do souboru se nepodařilo inicializovat. Logy se budou vypisovat pouze do konzole.{RESET}")
+except Exception as e:
+    # Pokud dojde k chybě už při samotné inicializaci Loggeru, vypíšeme ji do původní konzole
+    print(f"{RED}Kritická chyba při pokusu o inicializaci Loggeru: {e}{RESET}")
+    print(f"{RED}Logy se budou vypisovat pouze do konzole.{RESET}")
 
 
 version = "1.0.1"
@@ -208,17 +222,27 @@ def open_settings_window(config_file_path, current_config):
     settings_window.grab_set()
     root.wait_window(settings_window)
 
-def check_version_and_update_button(play_button_text_var, force_install_var, config):
+def _check_version_and_update_button_thread(play_button_text_var, force_install_var, config):
     """
+    Tato funkce se spouští v samostatném vlákně.
     Fetches remote game version, compares it with local config,
     and updates the Play/Install button text.
     """
     local_version = config.get("game_version", "0.0.0").strip()
     remote_version_url = "https://raw.githubusercontent.com/Bohemia-trains/MimrpimEngine-Download/refs/heads/main/launcher/game.version"
+    
+    print(f"{BLUE}Kontroluji verzi hry...{RESET}")
+    # Zde se provádí síťová operace, která by mohla blokovat GUI
     remote_version = fetch_remote_game_version(remote_version_url)
 
-    print(f"{BLUE}Kontroluji verzi hry... Lokální: {local_version}, Vzdálená: {remote_version}{RESET}")
+    # Aktualizace GUI prvků musí probíhat v hlavním vlákně Tkinter
+    # Použijeme after() pro bezpečné volání z jiného vlákna
+    root.after(0, lambda: _update_gui_button_text(play_button_text_var, force_install_var, local_version, remote_version))
 
+def _update_gui_button_text(play_button_text_var, force_install_var, local_version, remote_version):
+    """
+    Aktualizuje text tlačítka Play/Install v hlavním vlákně GUI.
+    """
     if force_install_var.get():
         play_button_text_var.set("Install (Force)")
         print(f"{YELLOW}Force Install je aktivní. Tlačítko nastaveno na 'Install (Force)'.{RESET}")
@@ -231,6 +255,18 @@ def check_version_and_update_button(play_button_text_var, force_install_var, con
     else:
         play_button_text_var.set("Play")
         print(f"{GREEN}Verze hry je aktuální. Tlačítko nastaveno na 'Play'.{RESET}")
+
+def check_version_and_update_button(play_button_text_var, force_install_var, config):
+    """
+    Spustí kontrolu verze v samostatném vlákně.
+    """
+    # Spustíme funkci _check_version_and_update_button_thread v novém vlákně
+    thread = threading.Thread(target=_check_version_and_update_button_thread, args=(play_button_text_var, force_install_var, config))
+    thread.daemon = True # Nastavíme vlákno jako daemon, aby se ukončilo s hlavním programem
+    thread.start()
+    play_button_text_var.set("Kontroluji...") # Okamžitá změna textu tlačítka pro zpětnou vazbu
+    print(f"{BLUE}Spuštěna kontrola verze na pozadí. Tlačítko nastaveno na 'Kontroluji...'.{RESET}")
+
 
 def on_platform_version_change(platform_version_var, config, config_file_path):
     """
@@ -263,6 +299,19 @@ def create_gui():
 
     config = load_config(config_file_path) # Použijeme importovanou load_config
     print(f"{BLUE}Konfigurace načtena: {config}{RESET}")
+
+    # --- NOVÁ ČÁST: Vytvoření složky path_game, pokud neexistuje ---
+    path_game = config.get("path_game", "Game/") # Získá cestu ze configu, nebo výchozí "Game/"
+    full_game_path = os.path.join(current_app_root, path_game)
+    if not os.path.exists(full_game_path):
+        try:
+            os.makedirs(full_game_path)
+            print(f"{GREEN}Vytvořena složka pro hru (path_game): {full_game_path}{RESET}")
+        except Exception as e:
+            print(f"{RED}Chyba při vytváření složky pro hru '{full_game_path}': {e}{RESET}")
+    else:
+        print(f"{BLUE}Složka pro hru (path_game) již existuje: {full_game_path}{RESET}")
+    # --- KONEC NOVÉ ČÁSTI ---
 
     # Nastavení ikony okna
     # Nyní používáme current_app_root, který je kořenem aplikace
@@ -370,6 +419,8 @@ def create_gui():
     play_button.grid(row=0, column=2, padx=10, pady=5)
     print(f"{BLUE}Tlačítko Play/Install vytvořeno.{RESET}")
 
+    # Původní trace_add volal check_version_and_update_button přímo
+    # Nyní voláme check_version_and_update_button, která spustí vlákno
     force_install_var.trace_add("write", lambda *args: check_version_and_update_button(play_button_text_var, force_install_var, config))
 
     right_controls_group_frame = tk.Frame(controls_frame, bg="white")
@@ -397,6 +448,7 @@ def create_gui():
     platform_dropdown.grid(row=0, column=1, padx=5, pady=5, sticky="w")
     print(f"{BLUE}Dropdown pro výběr platformy vytvořen.{RESET}")
 
+    # Počáteční kontrola verze při spuštění GUI (také v samostatném vlákně)
     check_version_and_update_button(play_button_text_var, force_install_var, config)
 
     root.mainloop()
@@ -404,7 +456,8 @@ def create_gui():
 if __name__ == "__main__":
     create_gui()
     # Důležité: Před ukončením programu obnovíme původní sys.stdout a zavřeme logovací soubor.
-    if isinstance(sys.stdout, Logger):
+    # Nyní kontrolujeme, zda je sys.stdout instancí Loggeru a zda byl úspěšně inicializován
+    if isinstance(sys.stdout, Logger) and sys.stdout.is_initialized_successfully:
         log_file_path_for_message = sys.stdout.log_file_path
         if sys.stdout.log:
             sys.stdout.log.close()
@@ -413,3 +466,7 @@ if __name__ == "__main__":
             print(f"Logovací soubor '{log_file_path_for_message}' byl uzavřen.")
         else:
             print("Logovací soubor nebyl vytvořen kvůli chybě.")
+    elif isinstance(sys.stdout, Logger): # Pokud je to Logger, ale inicializace selhala
+        sys.stdout = sys.stdout._original_stdout # Obnovíme původní stdout
+        print(f"{RED}Varování: Logovací soubor nebyl úspěšně inicializován, logy se neuzavřely do souboru.{RESET}")
+    # Jinak (pokud sys.stdout není Logger), neděláme nic, protože logování nebylo aktivní

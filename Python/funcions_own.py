@@ -10,7 +10,7 @@ import re # Import pro regulární výrazy pro odstranění barevných kódů
 import zipfile # Pro kompresi logů
 import glob # Pro hledání souborů
 
-# Konstanty pro barvy
+# Konstanty pro barvy (OPRAVENO: RED bylo "\031m", má být "\033[31m")
 RESET = "\033[0m"
 RED = "\033[31m"      # Pro chyby
 GREEN = "\033[32m"    # Pro úspěšné operace, dokončení
@@ -18,6 +18,7 @@ YELLOW = "\033[33m"   # Pro varování, uživatelský vstup, důležité informa
 BLUE = "\033[34m"     # Pro obecné informace, úvodní zprávy
 CYAN = "\033[36m"     # Pro debugovací zprávy
 GREY = "\033[90m"     # Pro méně důležité, "tiché" zprávy
+# První print pro ověření, že se soubor načítá
 print (f"{BLUE}-=- Funcions Own -=-{RESET}")
 
 # Počet dní, po kterých budou logy komprimovány a archivovány
@@ -33,24 +34,26 @@ class Logger(object):
         self.log_suffix = log_suffix # Uložíme příponu pro název logu (např. "_console-launcher" nebo "_gui-launcher")
         self.log = None # Inicializujeme self.log na None, dokud není soubor úspěšně otevřen
         self.log_file_path = None # Cesta k logovacímu souboru
+        self.is_initialized_successfully = False # Nový příznak pro úspěšnou inicializaci
 
         # Vytvoření názvu souboru s datem a časem pro aktuální log
         now_init = datetime.datetime.now()
-        # Přidáme dynamickou příponu a SEKUNDY
         log_filename = now_init.strftime(f"%d-%m-%Y-%H-%M-%S{self.log_suffix}.log")
 
         # Cesta ke složce logs/ (relativní k aktuálnímu pracovnímu adresáři)
         self.log_dir = os.path.join(os.getcwd(), "logs")
         
         # Zajištění, že složka logs/ existuje
-        if not os.path.exists(self.log_dir):
-            try:
+        try:
+            if not os.path.exists(self.log_dir):
                 os.makedirs(self.log_dir)
                 self.terminal.write(f"{GREEN}Vytvořena složka pro logy: '{self.log_dir}'{RESET}\n")
-            except Exception as e:
-                self.terminal.write(f"{RED}Chyba při vytváření složky pro logy '{self.log_dir}': {e}{RESET}\n")
-                # Pokud se nepodaří vytvořit složku, logovací soubor se neotevře
-                return # Ukončíme inicializaci, log nebude k dispozici
+        except Exception as e:
+            self.terminal.write(f"{RED}Chyba při vytváření složky pro logy '{self.log_dir}': {e}{RESET}\n")
+            # Pokud se nepodaří vytvořit složku, logovací soubor se neotevře
+            # is_initialized_successfully zůstane False
+            # Není zde 'return', aby se kód pokusil pokračovat a self.log zůstalo None
+            return # Zde se inicializace přeruší, ale self.terminal je stále původní stdout
 
         # Sestavení kompletní cesty k logovacímu souboru
         self.log_file_path = os.path.join(self.log_dir, log_filename)
@@ -58,14 +61,14 @@ class Logger(object):
         try:
             self.log = open(self.log_file_path, "a", encoding="utf-8")
             self.terminal.write(f"{BLUE}Logování přesměrováno do souboru: '{self.log_file_path}'{RESET}\n")
+            self.is_initialized_successfully = True # Úspěšná inicializace
+            # Po inicializaci nového logu zkomprimujeme a archivujeme staré logy
+            self._compress_and_archive_old_logs()
         except Exception as e:
             self.terminal.write(f"{RED}Chyba při otevírání logovacího souboru '{self.log_file_path}': {e}{RESET}\n")
             self.log = None # Zajistíme, že self.log je None, pokud se soubor neotevře
+            self.is_initialized_successfully = False # Inicializace selhala
 
-        # Po inicializaci nového logu zkomprimujeme a archivujeme staré logy
-        # Tuto funkci voláme pouze, pokud se logovací soubor úspěšně otevřel
-        if self.log:
-            self._compress_and_archive_old_logs()
 
     def write(self, message):
         self.terminal.write(message) # Zapisujeme do konzole (s barvami)
@@ -94,13 +97,13 @@ class Logger(object):
         self.terminal.write(f"{BLUE}Kontroluji staré logy pro archivaci (starší než {LOG_RETENTION_DAYS} dní)...{RESET}\n")
         archive_dir = os.path.join(self.log_dir, "archive")
         
-        if not os.path.exists(archive_dir):
-            try:
+        try:
+            if not os.path.exists(archive_dir):
                 os.makedirs(archive_dir)
                 self.terminal.write(f"{GREEN}Vytvořena složka pro archivaci logů: '{archive_dir}'{RESET}\n")
-            except Exception as e:
-                self.terminal.write(f"{RED}Chyba při vytváření složky pro archivaci '{archive_dir}': {e}{RESET}\n")
-                return
+        except Exception as e:
+            self.terminal.write(f"{RED}Chyba při vytváření složky pro archivaci '{archive_dir}': {e}{RESET}\n")
+            return
 
         # Získání seznamu všech log souborů v log_dir, kromě aktuálního
         log_files_to_archive = []
