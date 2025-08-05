@@ -58,8 +58,8 @@ def run_updater():
         updater_script = "update.bat"
         # Cesta k updater_script se odvozuje od aktuálního CWD
         full_updater_script_path = os.path.join(os.getcwd(), updater_script)
-        # Zde přidáváme uvozovky kolem normalized_path_game
-        command = ["cmd.exe", "/C", full_updater_script_path, f'"{normalized_path_game}"', platform_version]
+        # Změna zde: Přidány uvozovky kolem full_updater_script_path
+        command = ["cmd.exe", "/C", f'"{full_updater_script_path}"', f'{normalized_path_game}', platform_version]
     else: # Předpokládáme Linux nebo macOS
         updater_script = "update.sh"
         # Cesta k updater_script se odvozuje od aktuálního CWD

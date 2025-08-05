@@ -1,0 +1,18 @@
+Původní aktuální pracovní adresář (CWD): C:\Users\mimrp\.git\MimrpimEngine-Launcher\Python
+Zjištěný kořenový adresář aplikace (kde je skript/exe): c:\Users\mimrp\.git\MimrpimEngine-Launcher\Python
+Aktuální pracovní adresář (CWD) změněn na: C:\Users\mimrp\.git\MimrpimEngine-Launcher\Python
+
+--- Pokračování programu ---
+Program nyní pracuje v adresáři: C:\Users\mimrp\.git\MimrpimEngine-Launcher\Python
+Konfigurace načtena: {'path_game': 'Game/MimrpimEngine', 'platform_version': 'Win32', 'game_version': 'a0.0.2'}
+Složka pro hru (path_game) již existuje: C:\Users\mimrp\.git\MimrpimEngine-Launcher\Python\Game/MimrpimEngine
+Ikona okna načtena z: C:\Users\mimrp\.git\MimrpimEngine-Launcher\Python\icon.ico
+Načítám obsah changelogu z: https://raw.githubusercontent.com/Bohemia-trains/MimrpimEngine-Download/refs/heads/main/launcher/changelog.md
+Changelog načten.
+Tlačítko 'Nastavení' vytvořeno.
+Checkbox 'Force Install' vytvořen.
+Tlačítko Play/Install vytvořeno.
+Popisek 'Vyberte verzi:' vytvořen.
+Dropdown pro výběr platformy vytvořen.
+Kontroluji verzi hry...Spuštěna kontrola verze na pozadí. Tlačítko nastaveno na 'Kontroluji...'.
+

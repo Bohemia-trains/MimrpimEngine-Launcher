@@ -9,8 +9,9 @@ import json
 import os
 import threading # Nový import pro práci s vlákny
 from funcions_own import Logger, get_application_root, save_config, load_config
+import pygame.mixer # Nový import pro přehrávání zvuku
 
-# Konstanty pro barvy (OPRAVENO: RED bylo "\031m", má být "\033[31m")
+# Konstanty pro barvy
 RESET = "\033[0m"
 RED = "\033[31m"      # Pro chyby
 GREEN = "\033[32m"    # Pro úspěšné operace, dokončení
@@ -57,6 +58,8 @@ except Exception as e:
 print(f"\n{BLUE}--- Pokračování programu ---{RESET}")
 print(f"{BLUE}Program nyní pracuje v adresáři: {os.getcwd()}{RESET}")
 
+# Globální proměnná pro uložení objektu zvuku, aby bylo možné ho ovládat
+current_menu_sound = None
 
 class MarkdownToTkinterParser(HTMLParser):
     """
@@ -186,13 +189,51 @@ def apply_markdown_to_text_widget(text_widget, md_content):
 
     text_widget.config(state=tk.DISABLED)
 
+def toggle_music(config):
+    """
+    Spustí nebo zastaví hudbu na základě nastavení v konfiguraci.
+    """
+    global current_menu_sound
+    # Změna: Výchozí hodnota je nyní False (vypnuto), pokud v configu není
+    music_enabled = config.get("music_enabled", False) 
+
+    if not pygame.mixer.get_init():
+        try:
+            pygame.mixer.init()
+            print(f"{GREEN}Pygame mixer inicializován pro ovládání hudby.{RESET}")
+        except Exception as e:
+            print(f"{RED}Chyba při inicializaci Pygame mixeru pro ovládání hudby: {e}. Hudba nemusí fungovat.{RESET}")
+            return # Pokud se mixer neinicializuje, nemůžeme pokračovat
+
+    if music_enabled:
+        sound_file_path = os.path.join('.', 'Menu.mp3') # Zkontroluj, zda se tvůj soubor jmenuje 'Menu.mp3' nebo 'Menu..mp3'
+        if os.path.exists(sound_file_path):
+            if current_menu_sound is None or not pygame.mixer.get_busy():
+                try:
+                    current_menu_sound = pygame.mixer.Sound(sound_file_path)
+                    current_menu_sound.play(loops=-1) # Přehrát s nekonečnou smyčkou
+                    print(f"{GREEN}Hudba '{os.path.basename(sound_file_path)}' spuštěna v nekonečné smyčce.{RESET}")
+                except Exception as e:
+                    print(f"{RED}Chyba při spouštění hudby: {e}{RESET}")
+            else:
+                print(f"{BLUE}Hudba již hraje.{RESET}")
+        else:
+            print(f"{YELLOW}Upozornění: Hudební soubor '{sound_file_path}' nebyl nalezen. Hudba se nespustí.{RESET}")
+    else:
+        if pygame.mixer.get_busy():
+            pygame.mixer.stop() # Zastaví všechny hrající zvuky
+            print(f"{BLUE}Hudba zastavena.{RESET}")
+        else:
+            print(f"{BLUE}Hudba již nehraje.{RESET}")
+
+
 def open_settings_window(config_file_path, current_config):
     """
-    Otevře nové okno pro nastavení, kde lze upravit cestu ke hře.
+    Otevře nové okno pro nastavení, kde lze upravit cestu ke hře a nastavení hudby.
     """
     settings_window = tk.Toplevel(root)
     settings_window.title("Nastavení launcheru")
-    settings_window.geometry("450x150")
+    settings_window.geometry("450x200") # Zvětšeno pro nový checkbox
     settings_window.configure(bg="white")
 
     settings_window.update_idletasks()
@@ -206,11 +247,34 @@ def open_settings_window(config_file_path, current_config):
     path_game_entry = tk.Entry(settings_window, textvariable=path_game_var, width=50)
     path_game_entry.pack(pady=5)
 
+    # --- NOVÁ ČÁST: Checkbox pro hudbu ---
+    # Změna: Výchozí hodnota je nyní False (vypnuto), pokud v configu není
+    music_enabled_var = tk.BooleanVar(value=current_config.get("music_enabled", False)) 
+    music_checkbox = tk.Checkbutton(
+        settings_window,
+        text="Přehrávat hudbu",
+        variable=music_enabled_var,
+        bg="white",
+        fg="black",
+        font=("Arial", 10)
+    )
+    music_checkbox.pack(pady=5)
+    # --- KONEC NOVÉ ČÁSTI ---
+
     def save_and_close_settings():
         new_path_game = path_game_var.get()
         current_config["path_game"] = new_path_game
+        
+        # Uloží stav checkboxu pro hudbu
+        current_config["music_enabled"] = music_enabled_var.get()
+        
         save_config(config_file_path, current_config) # Použijeme importovanou save_config
         print(f"{GREEN}Cesta ke hře uložena: {new_path_game}{RESET}")
+        print(f"{GREEN}Stav hudby uložen: {music_enabled_var.get()}{RESET}")
+        
+        # Okamžitě aplikuje změnu nastavení hudby
+        toggle_music(current_config)
+
         settings_window.destroy()
 
     button_frame = tk.Frame(settings_window, bg="white")
@@ -259,6 +323,7 @@ def _update_gui_button_text(play_button_text_var, force_install_var, local_versi
 def check_version_and_update_button(play_button_text_var, force_install_var, config):
     """
     Spustí kontrolu verze v samostatném vlákně.
+    Hudba je nyní ovládána funkcí toggle_music() volanou z create_gui() a open_settings_window().
     """
     # Spustíme funkci _check_version_and_update_button_thread v novém vlákně
     thread = threading.Thread(target=_check_version_and_update_button_thread, args=(play_button_text_var, force_install_var, config))
@@ -266,7 +331,14 @@ def check_version_and_update_button(play_button_text_var, force_install_var, con
     thread.start()
     play_button_text_var.set("Kontroluji...") # Okamžitá změna textu tlačítka pro zpětnou vazbu
     print(f"{BLUE}Spuštěna kontrola verze na pozadí. Tlačítko nastaveno na 'Kontroluji...'.{RESET}")
-
+    
+    # --- Přehrávání hudby je nyní řízeno funkcí toggle_music() ---
+    # Zde už není potřeba znovu spouštět hudbu, protože se o to postará toggle_music()
+    # při inicializaci GUI nebo při změně nastavení.
+    # Pokud bys chtěl, aby se hudba restartovala při každé kontrole verze,
+    # mohl bys zde zavolat toggle_music(config) znovu, ale obvykle to není žádoucí.
+    # toggle_music(config) # Volitelné: pokud chcete restartovat hudbu při každé kontrole
+    # -------------------------------------------------------------
 
 def on_platform_version_change(platform_version_var, config, config_file_path):
     """
@@ -285,6 +357,14 @@ def create_gui():
     """
     global root
     root = tk.Tk()
+    
+    # --- INICIALIZACE PYGAME MIXERU (DŮLEŽITÉ: Měla by být zde na začátku GUI funkce) ---
+    try:
+        pygame.mixer.init()
+        print(f"{GREEN}Pygame mixer inicializován.{RESET}")
+    except Exception as e:
+        print(f"{RED}Chyba při inicializaci Pygame mixeru: {e}. Zvuky nemusí fungovat.{RESET}")
+    # -------------------------------------------------------------------------------------
 
     # Získá aktuální pracovní adresář, který už byl nastaven na kořen aplikace
     current_app_root = os.getcwd()
@@ -451,6 +531,9 @@ def create_gui():
     # Počáteční kontrola verze při spuštění GUI (také v samostatném vlákně)
     check_version_and_update_button(play_button_text_var, force_install_var, config)
 
+    # Spustí nebo zastaví hudbu na základě načtené konfigurace
+    toggle_music(config)
+
     root.mainloop()
 
 if __name__ == "__main__":
@@ -470,3 +553,12 @@ if __name__ == "__main__":
         sys.stdout = sys.stdout._original_stdout # Obnovíme původní stdout
         print(f"{RED}Varování: Logovací soubor nebyl úspěšně inicializován, logy se neuzavřely do souboru.{RESET}")
     # Jinak (pokud sys.stdout není Logger), neděláme nic, protože logování nebylo aktivní
+    
+    # --- DŮLEŽITÉ: Ukončení Pygame mixeru při ukončení programu ---
+    try:
+        if pygame.mixer.get_init(): # Kontrola, zda byl mixer vůbec inicializován
+            pygame.mixer.quit()
+            print(f"{GREEN}Pygame mixer ukončen.{RESET}")
+    except Exception as e:
+        print(f"{RED}Chyba při ukončování Pygame mixeru: {e}{RESET}")
+    # -------------------------------------------------------------
