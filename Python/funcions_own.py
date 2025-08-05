@@ -10,7 +10,7 @@ import re # Import pro regulární výrazy pro odstranění barevných kódů
 import zipfile # Pro kompresi logů
 import glob # Pro hledání souborů
 
-# Konstanty pro barvy (OPRAVENO: RED bylo "\031m", má být "\033[31m")
+# Konstanty pro barvy
 RESET = "\033[0m"
 RED = "\033[31m"      # Pro chyby
 GREEN = "\033[32m"    # Pro úspěšné operace, dokončení
@@ -18,8 +18,10 @@ YELLOW = "\033[33m"   # Pro varování, uživatelský vstup, důležité informa
 BLUE = "\033[34m"     # Pro obecné informace, úvodní zprávy
 CYAN = "\033[36m"     # Pro debugovací zprávy
 GREY = "\033[90m"     # Pro méně důležité, "tiché" zprávy
-# První print pro ověření, že se soubor načítá
-print (f"{BLUE}-=- Funcions Own -=-{RESET}")
+
+# První print pro ověření, že se soubor načítá.
+# Tento print se provede před přesměrováním sys.stdout.
+print(f"{BLUE}-=- Funcions Own -=-{RESET}")
 
 # Počet dní, po kterých budou logy komprimovány a archivovány
 # Pokud je nastaveno na 0, archivují se všechny logy kromě aktuálně otevřeného.
@@ -29,9 +31,12 @@ LOG_RETENTION_DAYS = 7
 # --- Třída pro logování do souboru a terminálu ---
 class Logger(object):
     def __init__(self, log_suffix="_console-launcher"):
-        self.terminal = sys.stdout # Uložíme původní standardní výstup (konzoli)
+        # Uložíme původní standardní výstup (konzoli) pomocí sys.__stdout__,
+        # který je spolehlivější v PyInstaller balíčcích.
         self._original_stdout = sys.stdout # Reference na původní stdout pro obnovení
-        self.log_suffix = log_suffix # Uložíme příponu pro název logu (např. "_console-launcher" nebo "_gui-launcher")
+        self.terminal = sys.__stdout__ # Použijeme sys.__stdout__ pro spolehlivější přístup k původní konzoli
+
+        self.log_suffix = log_suffix
         self.log = None # Inicializujeme self.log na None, dokud není soubor úspěšně otevřen
         self.log_file_path = None # Cesta k logovacímu souboru
         self.is_initialized_successfully = False # Nový příznak pro úspěšnou inicializaci
@@ -47,31 +52,47 @@ class Logger(object):
         try:
             if not os.path.exists(self.log_dir):
                 os.makedirs(self.log_dir)
-                self.terminal.write(f"{GREEN}Vytvořena složka pro logy: '{self.log_dir}'{RESET}\n")
+                # Kontrola self.terminal před zápisem do konzole
+                if self.terminal: 
+                    self.terminal.write(f"{GREEN}Vytvořena složka pro logy: '{self.log_dir}'{RESET}\n")
         except Exception as e:
-            self.terminal.write(f"{RED}Chyba při vytváření složky pro logy '{self.log_dir}': {e}{RESET}\n")
-            # Pokud se nepodaří vytvořit složku, logovací soubor se neotevře
-            # is_initialized_successfully zůstane False
+            # Kontrola self.terminal před zápisem chyby do konzole
+            if self.terminal: 
+                self.terminal.write(f"{RED}Chyba při vytváření složky pro logy '{self.log_dir}': {e}{RESET}\n")
             # Není zde 'return', aby se kód pokusil pokračovat a self.log zůstalo None
-            return # Zde se inicializace přeruší, ale self.terminal je stále původní stdout
+            # pokud se nepodaří vytvořit složku, logovací soubor se neotevře
+            # is_initialized_successfully zůstane False
+            pass # Pokračujeme dál, i když se nepodařilo vytvořit složku nebo logovat chybu
 
         # Sestavení kompletní cesty k logovacímu souboru
         self.log_file_path = os.path.join(self.log_dir, log_filename)
         
         try:
             self.log = open(self.log_file_path, "a", encoding="utf-8")
-            self.terminal.write(f"{BLUE}Logování přesměrováno do souboru: '{self.log_file_path}'{RESET}\n")
+            # Kontrola self.terminal před zápisem do konzole
+            if self.terminal: 
+                self.terminal.write(f"{BLUE}Logování přesměrováno do souboru: '{self.log_file_path}'{RESET}\n")
             self.is_initialized_successfully = True # Úspěšná inicializace
             # Po inicializaci nového logu zkomprimujeme a archivujeme staré logy
             self._compress_and_archive_old_logs()
         except Exception as e:
-            self.terminal.write(f"{RED}Chyba při otevírání logovacího souboru '{self.log_file_path}': {e}{RESET}\n")
+            # Kontrola self.terminal před zápisem chyby do konzole
+            if self.terminal:
+                self.terminal.write(f"{RED}Chyba při otevírání logovacího souboru '{self.log_file_path}': {e}{RESET}\n")
             self.log = None # Zajistíme, že self.log je None, pokud se soubor neotevře
             self.is_initialized_successfully = False # Inicializace selhala
 
 
     def write(self, message):
-        self.terminal.write(message) # Zapisujeme do konzole (s barvami)
+        # Zapisujeme do konzole (s barvami), pokud je self.terminal dostupný
+        if self.terminal:
+            try:
+                self.terminal.write(message) 
+            except Exception as e:
+                # Pokud se nepodaří zapsat do terminalu, alespoň to zkusíme do logu
+                if self.log and not self.log.closed:
+                    self.log.write(f"ERROR: Failed to write to terminal: {e} - Original message: {message}\n")
+
         # Zapisujeme do souboru pouze, pokud self.log není None a soubor není uzavřen
         if self.log and not self.log.closed:
             # Odstranění ANSI escape kódů před zápisem do souboru
@@ -79,7 +100,15 @@ class Logger(object):
             self.log.write(clean_message)
 
     def flush(self):
-        self.terminal.flush()
+        # Vyprázdnění konzole, pokud je self.terminal dostupný
+        if self.terminal:
+            try:
+                self.terminal.flush()
+            except Exception as e:
+                # Pokud se nepodaří vyprázdnit terminal, alespoň to zkusíme do logu
+                if self.log and not self.log.closed:
+                    self.log.write(f"ERROR: Failed to flush terminal: {e}\n")
+
         # Vyprázdnění souboru pouze, pokud self.log není None a soubor není uzavřen
         if self.log and not self.log.closed:
             self.log.flush()
@@ -94,15 +123,19 @@ class Logger(object):
         # Získání aktuálního času pro porovnání stáří logů (z modifikace souboru)
         now = datetime.datetime.now() 
 
-        self.terminal.write(f"{BLUE}Kontroluji staré logy pro archivaci (starší než {LOG_RETENTION_DAYS} dní)...{RESET}\n")
+        if self.terminal:
+            self.terminal.write(f"{BLUE}Kontroluji staré logy pro archivaci (starší než {LOG_RETENTION_DAYS} dní)...{RESET}\n")
+        
         archive_dir = os.path.join(self.log_dir, "archive")
         
         try:
             if not os.path.exists(archive_dir):
                 os.makedirs(archive_dir)
-                self.terminal.write(f"{GREEN}Vytvořena složka pro archivaci logů: '{archive_dir}'{RESET}\n")
+                if self.terminal:
+                    self.terminal.write(f"{GREEN}Vytvořena složka pro archivaci logů: '{archive_dir}'{RESET}\n")
         except Exception as e:
-            self.terminal.write(f"{RED}Chyba při vytváření složky pro archivaci '{archive_dir}': {e}{RESET}\n")
+            if self.terminal:
+                self.terminal.write(f"{RED}Chyba při vytváření složky pro archivaci '{archive_dir}': {e}{RESET}\n")
             return
 
         # Získání seznamu všech log souborů v log_dir, kromě aktuálního
@@ -123,7 +156,8 @@ class Logger(object):
                 
                 # Kontrola, zda název souboru končí na očekávanou příponu
                 if not filename.endswith(f"{self.log_suffix}.log"):
-                    self.terminal.write(f"{GREY}Přeskakuji log '{filename}' - nemá příponu '{self.log_suffix}.log'.{RESET}\n")
+                    if self.terminal:
+                        self.terminal.write(f"{GREY}Přeskakuji log '{filename}' - nemá příponu '{self.log_suffix}.log'.{RESET}\n")
                     continue
 
                 mod_time = datetime.datetime.fromtimestamp(os.path.getmtime(log_file_path))
@@ -149,12 +183,15 @@ class Logger(object):
                                 latest_log_datetime = parsed_dt
                                 latest_log_filename = filename
                         except ValueError:
-                            self.terminal.write(f"{YELLOW}Varování: Nelze parsovat datum a čas z názvu logu '{filename}'. Přeskakuji pro určení rozsahu názvu archivu.{RESET}\n")
+                            if self.terminal:
+                                self.terminal.write(f"{YELLOW}Varování: Nelze parsovat datum a čas z názvu logu '{filename}'. Přeskakuji pro určení rozsahu názvu archivu.{RESET}\n")
                     else:
-                        self.terminal.write(f"{YELLOW}Varování: Datum a čas v názvu logu '{filename}' neodpovídá očekávanému formátu (dd-mm-yyyy-hh-mm-ss). Přeskakuji pro určení rozsahu názvu archivu.{RESET}\n")
+                        if self.terminal:
+                            self.terminal.write(f"{YELLOW}Varování: Datum a čas v názvu logu '{filename}' neodpovídá očekávanému formátu (dd-mm-yyyy-hh-mm-ss). Přeskakuji pro určení rozsahu názvu archivu.{RESET}\n")
 
         if not log_files_to_archive:
-            self.terminal.write(f"{BLUE}Nenalezeny žádné staré logy k archivaci.{RESET}\n")
+            if self.terminal:
+                self.terminal.write(f"{BLUE}Nenalezeny žádné staré logy k archivaci.{RESET}\n")
             return
 
         # Vytvoření názvu pro archivní ZIP soubor s datumovým rozsahem
@@ -177,17 +214,21 @@ class Logger(object):
                 for file_path in log_files_to_archive:
                     arcname = os.path.basename(file_path)
                     zipf.write(file_path, arcname)
-                    self.terminal.write(f"{GREEN}Archivován log: '{arcname}'{RESET}\n")
+                    if self.terminal:
+                        self.terminal.write(f"{GREEN}Archivován log: '{arcname}'{RESET}\n")
             
             # Smazání původních souborů po úspěšné archivaci
             for file_path in log_files_to_archive:
                 os.remove(file_path)
-                self.terminal.write(f"{GREEN}Smazán původní log: '{os.path.basename(file_path)}'{RESET}\n")
+                if self.terminal:
+                    self.terminal.write(f"{GREEN}Smazán původní log: '{os.path.basename(file_path)}'{RESET}\n")
             
-            self.terminal.write(f"{GREEN}Staré logy úspěšně archivovány do: '{archive_path}'{RESET}\n")
+            if self.terminal:
+                self.terminal.write(f"{GREEN}Staré logy úspěšně archivovány do: '{archive_path}'{RESET}\n")
 
         except Exception as e:
-            self.terminal.write(f"{RED}Chyba při archivaci logů: {e}{RESET}\n")
+            if self.terminal:
+                self.terminal.write(f"{RED}Chyba při archivaci logů: {e}{RESET}\n")
 
 
 # --- Funkce pro zjištění kořenového adresáře aplikace ---
@@ -341,4 +382,5 @@ def update1(soubor_s_url: str, cilova_slozka: str):
     print(f"\n{BLUE}--- Stahování obsahu seznamu dokončeno ---{RESET}")
     print(f"{GREEN}Celkem staženo úspěšně: {stazeno_uspesne}{RESET}")
     print(f"{RED}Celkem selhalo: {stazeno_selhalo}{RESET}")
+
 print(f"{BLUE}-=- End of Funcions Own -=-{RESET}")

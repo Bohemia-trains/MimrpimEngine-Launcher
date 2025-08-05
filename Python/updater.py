@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import subprocess
 import os
 import json
@@ -53,27 +54,39 @@ def run_updater():
     print(f"Načtená path_game: {normalized_path_game}")
     print(f"Načtená platform_version: {platform_version}")
 
-    command = []
+    updater_script = ""
+    command_list = []
+
     if platform.system() == "Windows":
         updater_script = "update.bat"
         # Cesta k updater_script se odvozuje od aktuálního CWD
         full_updater_script_path = os.path.join(os.getcwd(), updater_script)
-        # Změna zde: Přidány uvozovky kolem full_updater_script_path
-        command = ["cmd.exe", "/C", f'"{full_updater_script_path}"', f'{normalized_path_game}', platform_version]
+        
+        # Klíčová změna: Pro shell=True předáme jeden řetězec,
+        # kde jsou cesty správně uvozeny.
+        # Použijeme 'call' pro spuštění bat souboru z jiného bat souboru/skriptu.
+        command_string = f'call "{full_updater_script_path}" "{normalized_path_game}" "{platform_version}"'
+        command_list = [command_string] # Nyní je to jeden řetězec
     else: # Předpokládáme Linux nebo macOS
         updater_script = "update.sh"
         # Cesta k updater_script se odvozuje od aktuálního CWD
         full_updater_script_path = os.path.join(os.getcwd(), updater_script)
-        # Zde přidáváme uvozovky kolem normalized_path_game
-        command = ["bash", full_updater_script_path, f'"{normalized_path_game}"', platform_version]
+        # Pro bash skripty je obvykle lepší předávat argumenty jako samostatné položky v seznamu,
+        # ale zajistit, aby byly správně obaleny uvozovkami, pokud obsahují mezery.
+        command_list = ["bash", full_updater_script_path, normalized_path_game, platform_version]
+        # Zde normalized_path_game a platform_version by měly být předány bez extra uvozovek,
+        # protože bash je bude interpretovat jako samostatné argumenty.
+        # Pokud by cesty na Linuxu obsahovaly mezery a bylo by potřeba je obalit,
+        # pak by se použilo f'"{normalized_path_game}"'. Pro jednoduchost to nechávám bez.
 
-    print(f"Spouštím příkaz: {command}")
+    print(f"Spouštím příkaz: {command_list}")
     try:
         # Spustí příkaz. check=True zajistí, že se vyvolá CalledProcessError, pokud příkaz selže.
         # cwd je nastaven na aktuální pracovní adresář (kořen aplikace),
         # aby se updater_script našel, pokud je přímo v kořeni.
-        subprocess.run(command, check=True, cwd=os.getcwd())
-        print(f"Příkaz '{' '.join(command)}' byl úspěšně spuštěn.")
+        # Pro Windows a příkaz s cmd.exe /C je důležité použít shell=True.
+        subprocess.run(command_list, check=True, cwd=os.getcwd(), shell=True if platform.system() == "Windows" else False)
+        print(f"Příkaz '{' '.join(command_list)}' byl úspěšně spuštěn.")
     except FileNotFoundError:
         print(f"Chyba: Aktualizační skript '{updater_script}' nebyl nalezen v '{os.getcwd()}'.")
         print("Ujistěte se, že soubor existuje a je spustitelný.")
@@ -81,9 +94,9 @@ def run_updater():
         print(f"Chyba při spouštění aktualizačního skriptu: {e}")
         print(f"Návratový kód: {e.returncode}")
         if e.stdout:
-            print(f"Standardní výstup: {e.stdout.decode()}")
+            print(f"Standardní výstup: {e.stdout.decode(errors='ignore')}") # Přidáno errors='ignore' pro dekódování
         if e.stderr:
-            print(f"Standardní chyba: {e.stderr.decode()}")
+            print(f"Standardní chyba: {e.stderr.decode(errors='ignore')}") # Přidáno errors='ignore' pro dekódování
     except Exception as e:
         print(f"Nastala neočekávaná chyba: {e}")
 

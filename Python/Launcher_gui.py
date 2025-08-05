@@ -528,11 +528,15 @@ def create_gui():
     platform_dropdown.grid(row=0, column=1, padx=5, pady=5, sticky="w")
     print(f"{BLUE}Dropdown pro výběr platformy vytvořen.{RESET}")
 
-    # Počáteční kontrola verze při spuštění GUI (také v samostatném vlákně)
-    check_version_and_update_button(play_button_text_var, force_install_var, config)
+    # Původní volání check_version_and_update_button bylo zde.
+    # Nyní se volá až po spuštění mainloopu pomocí root.after(100).
+    # check_version_and_update_button(play_button_text_var, force_install_var, config)
 
     # Spustí nebo zastaví hudbu na základě načtené konfigurace
     toggle_music(config)
+
+    # Důležité: Naplánujeme spuštění kontroly verze až po spuštění mainloopu
+    root.after(100, lambda: check_version_and_update_button(play_button_text_var, force_install_var, config))
 
     root.mainloop()
 
