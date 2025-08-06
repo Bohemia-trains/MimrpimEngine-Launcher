@@ -84,7 +84,9 @@ print(f"{BLUE}Zajištění výchozích hodnot v config dokončena.{RESET}")
 print(f"{BLUE}Kontroluji a vytvářím složku pro hru...{RESET}")
 # Vytvoření složky pro hru, pokud neexistuje, před kontrolou a případným dotazem
 # Normalizace cesty pro konzistentní formát
-full_game_path_from_config = '"'+os.path.normpath(os.path.join(os.getcwd(), config.get("path_game", "Game/")))+'"'
+# Původní: full_game_path_from_config = '"'+os.path.normpath(os.path.join(os.getcwd(), config.get("path_game", "Game/")))+'"'
+# Opraveno: Odstraněny nadbytečné uvozovky, které způsobovaly chybu WinError 123
+full_game_path_from_config = os.path.normpath(os.path.join(os.getcwd(), config.get("path_game", "Game/")))
 if not os.path.exists(full_game_path_from_config):
     print(f"{CYAN}DEBUG: Složka pro hru '{full_game_path_from_config}' neexistuje, vytvářím ji...{RESET}")
     os.makedirs(full_game_path_from_config)
