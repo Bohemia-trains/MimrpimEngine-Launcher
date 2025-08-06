@@ -54,8 +54,7 @@ def run_updater():
     print(f"Načtená path_game: {normalized_path_game}")
     print(f"Načtená platform_version: {platform_version}")
 
-    updater_script = ""
-    command_list = []
+    command_to_execute = "" # Změněno na jeden řetězec pro shell=True
 
     if platform.system() == "Windows":
         updater_script = "update.bat"
@@ -65,28 +64,33 @@ def run_updater():
         # Klíčová změna: Pro shell=True předáme jeden řetězec,
         # kde jsou cesty správně uvozeny.
         # Použijeme 'call' pro spuštění bat souboru z jiného bat souboru/skriptu.
-        command_string = f'call "{full_updater_script_path}" "{normalized_path_game}" "{platform_version}"'
-        command_list = [command_string] # Nyní je to jeden řetězec
+        command_to_execute = f'call "{full_updater_script_path}" "{normalized_path_game}" "{platform_version}"'
     else: # Předpokládáme Linux nebo macOS
         updater_script = "update.sh"
         # Cesta k updater_script se odvozuje od aktuálního CWD
         full_updater_script_path = os.path.join(os.getcwd(), updater_script)
         # Pro bash skripty je obvykle lepší předávat argumenty jako samostatné položky v seznamu,
         # ale zajistit, aby byly správně obaleny uvozovkami, pokud obsahují mezery.
-        command_list = ["bash", full_updater_script_path, normalized_path_game, platform_version]
+        command_to_execute = ["bash", full_updater_script_path, normalized_path_game, platform_version]
         # Zde normalized_path_game a platform_version by měly být předány bez extra uvozovek,
         # protože bash je bude interpretovat jako samostatné argumenty.
         # Pokud by cesty na Linuxu obsahovaly mezery a bylo by potřeba je obalit,
         # pak by se použilo f'"{normalized_path_game}"'. Pro jednoduchost to nechávám bez.
 
-    print(f"Spouštím příkaz: {command_list}")
+    print(f"Spouštím příkaz: {command_to_execute}")
     try:
         # Spustí příkaz. check=True zajistí, že se vyvolá CalledProcessError, pokud příkaz selže.
         # cwd je nastaven na aktuální pracovní adresář (kořen aplikace),
         # aby se updater_script našel, pokud je přímo v kořeni.
         # Pro Windows a příkaz s cmd.exe /C je důležité použít shell=True.
-        subprocess.run(command_list, check=True, cwd=os.getcwd(), shell=True if platform.system() == "Windows" else False)
-        print(f"Příkaz '{' '.join(command_list)}' byl úspěšně spuštěn.")
+        # Pokud je command_to_execute seznam (pro Linux/macOS), shell=False.
+        # Pokud je command_to_execute řetězec (pro Windows), shell=True.
+        if platform.system() == "Windows":
+            subprocess.run(command_to_execute, check=True, cwd=os.getcwd(), shell=True)
+        else:
+            subprocess.run(command_to_execute, check=True, cwd=os.getcwd(), shell=False)
+
+        print(f"Příkaz '{command_to_execute}' byl úspěšně spuštěn.")
     except FileNotFoundError:
         print(f"Chyba: Aktualizační skript '{updater_script}' nebyl nalezen v '{os.getcwd()}'.")
         print("Ujistěte se, že soubor existuje a je spustitelný.")
