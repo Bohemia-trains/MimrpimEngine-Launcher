@@ -1,3 +1,4 @@
+
 import tkinter as tk
 from tkinter import scrolledtext
 import subprocess
@@ -10,8 +11,17 @@ import os
 import threading # Nový import pro práci s vlákny
 from funcions_own import Logger, get_application_root, save_config, load_config
 import pygame.mixer # Nový import pro přehrávání zvuku
+BLUE = "\033[34m"     # Pro obecné informace, úvodní zprávy
+RESET = "\033[0m"
+version = "1.1.1"
+print(f"{BLUE}-=LOG OF Launcher_gui.py=-{RESET}")
+print(f"{BLUE}Spouštím Launcher_gui.py...{RESET}")
+print(f"{BLUE}Importuji...{RESET}")
+
+print(f"{BLUE}Import dokončen.{RESET}")
 
 # Konstanty pro barvy
+print(f"{BLUE}Nastavuji barvy...{RESET}")
 RESET = "\033[0m"
 RED = "\033[31m"      # Pro chyby
 GREEN = "\033[32m"    # Pro úspěšné operace, dokončení
@@ -19,15 +29,19 @@ YELLOW = "\033[33m"   # Pro varování, uživatelský vstup, důležité informa
 BLUE = "\033[34m"     # Pro obecné informace, úvodní zprávy
 CYAN = "\033[36m"     # Pro debugovací zprávy
 GREY = "\033[90m"     # Pro méně důležité, "tiché" zprávy
-
+print(f"{BLUE}Barvy nastaveny.{RESET}")
 # --- Nastavení logování do souboru pro GUI ---
 # Přesměrujeme sys.stdout na naši instanci Loggeru s příponou "_gui-launcher"
 # Zde je klíčové, že Logger musí být inicializován robustně.
 # Pokud Logger selže, sys.stdout zůstane původní, aby se chyby vypsaly do konzole.
+print(f"{BLUE}Inicializuji Logger pro GUI...{RESET}")
 try:
+    print(f"{CYAN}Inicializuji Logger s příponou '_gui-launcher'...{RESET}")
     gui_logger = Logger(log_suffix="_gui-launcher")
+    print(f"{GREEN}Dokončeno...{RESET}" )
     # Pouze pokud se Logger úspěšně inicializoval, přesměrujeme sys.stdout
     if gui_logger.is_initialized_successfully:
+        print(f"{GREEN}Logger úspěšně inicializován. Přesměrovávám sys.stdout...{RESET}")
         sys.stdout = gui_logger
     else:
         # Pokud se Logger nepodařilo inicializovat, zůstaneme u původního sys.stdout
@@ -38,11 +52,11 @@ except Exception as e:
     print(f"{RED}Kritická chyba při pokusu o inicializaci Loggeru: {e}{RESET}")
     print(f"{RED}Logy se budou vypisovat pouze do konzole.{RESET}")
 
-
-version = "1.0.1"
+print(f"{BLUE}Logger pro GUI inicializován.{RESET}")
 # --- Nastavení aktuálního pracovního adresáře na kořen aplikace ---
 # Tuto část kódu je klíčové mít na začátku souboru,
 # aby se aktuální pracovní adresář nastavil před jakýmikoli dalšími operacemi s cestami.
+print(f"{BLUE}Nastavuji aktuální pracovní adresář na kořen aplikace...{RESET}")
 puvodni_cwd = os.getcwd()
 print(f"{BLUE}Původní aktuální pracovní adresář (CWD): {puvodni_cwd}{RESET}")
 
@@ -231,12 +245,18 @@ def open_settings_window(config_file_path, current_config):
     """
     Otevře nové okno pro nastavení, kde lze upravit cestu ke hře a nastavení hudby.
     """
+    print(f"{CYAN}Kliknuto na tlačítko Nastavení{RESET}")
+    print(f"{BLUE}Otevírám okno nastavení...{RESET}")
+    print(f"{BLUE}Renderuji okno Nastavení...{RESET}")
     settings_window = tk.Toplevel(root)
     settings_window.title("Nastavení launcheru")
     settings_window.geometry("450x200") # Zvětšeno pro nový checkbox
     settings_window.configure(bg="white")
-
+    current_app_root = os.getcwd()
+    icon_path = os.path.join(current_app_root, "icon.ico")
+    settings_window.iconbitmap(icon_path)
     settings_window.update_idletasks()
+
     x = root.winfo_x() + (root.winfo_width() // 2) - (settings_window.winfo_width() // 2)
     y = root.winfo_y() + (root.winfo_height() // 2) - (settings_window.winfo_height() // 2)
     settings_window.geometry(f"+{x}+{y}")
@@ -260,7 +280,7 @@ def open_settings_window(config_file_path, current_config):
     )
     music_checkbox.pack(pady=5)
     # --- KONEC NOVÉ ČÁSTI ---
-
+    print(f"{BLUE}Vytvořeno okno Nastavení...{RESET}")
     def save_and_close_settings():
         new_path_game = path_game_var.get()
         current_config["path_game"] = new_path_game
@@ -395,6 +415,7 @@ def create_gui():
 
     # Nastavení ikony okna
     # Nyní používáme current_app_root, který je kořenem aplikace
+
     icon_path = os.path.join(current_app_root, "icon.ico")
     if os.path.exists(icon_path):
         try:
@@ -405,7 +426,7 @@ def create_gui():
     else:
         print(f"{YELLOW}Soubor ikony '{icon_path}' nebyl nalezen.{RESET}")
 
-    root.title("MimrpimEngine Launcher - Version " + version)
+    root.title("Train simulator Czechia Launcher - Version " + version)
 
     window_width = 854
     window_height = 480

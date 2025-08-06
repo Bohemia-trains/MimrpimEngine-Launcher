@@ -71,7 +71,7 @@ def run_updater():
         full_updater_script_path = os.path.join(os.getcwd(), updater_script)
         # Pro bash skripty je obvykle lepší předávat argumenty jako samostatné položky v seznamu,
         # ale zajistit, aby byly správně obaleny uvozovkami, pokud obsahují mezery.
-        command_to_execute = ["bash", full_updater_script_path, normalized_path_game, platform_version]
+        command_to_execute = ["bash", '"'+full_updater_script_path+'"', '"'+normalized_path_game+'"', platform_version]
         # Zde normalized_path_game a platform_version by měly být předány bez extra uvozovek,
         # protože bash je bude interpretovat jako samostatné argumenty.
         # Pokud by cesty na Linuxu obsahovaly mezery a bylo by potřeba je obalit,

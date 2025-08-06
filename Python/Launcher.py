@@ -13,7 +13,8 @@ from funcions_own import Logger, get_application_root, save_config, load_config,
 # Přesměrujeme sys.stdout na naši instanci Loggeru
 # Tím se veškerý výstup z print() a dalších funkcí přesměruje.
 sys.stdout = Logger()
-
+version = "1.0.1"  # Verze aplikace, kterou budeme zobrazovat v titulku okna
+os.system(f'title["Train simulator Czechia Launcher - Version {version}"]')
 
 # Konstanty pro barvy
 RESET = "\033[0m"
@@ -83,7 +84,7 @@ print(f"{BLUE}Zajištění výchozích hodnot v config dokončena.{RESET}")
 print(f"{BLUE}Kontroluji a vytvářím složku pro hru...{RESET}")
 # Vytvoření složky pro hru, pokud neexistuje, před kontrolou a případným dotazem
 # Normalizace cesty pro konzistentní formát
-full_game_path_from_config = os.path.normpath(os.path.join(os.getcwd(), config.get("path_game", "Game/")))
+full_game_path_from_config = '"'+os.path.normpath(os.path.join(os.getcwd(), config.get("path_game", "Game/")))'"'
 if not os.path.exists(full_game_path_from_config):
     print(f"{CYAN}DEBUG: Složka pro hru '{full_game_path_from_config}' neexistuje, vytvářím ji...{RESET}")
     os.makedirs(full_game_path_from_config)
