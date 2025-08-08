@@ -14,7 +14,7 @@ set "YELLOW=%ESC%[33m"   REM Pro varovani, uzivatelsky vstup, dulezite informace
 set "BLUE=%ESC%[34m"     REM Pro obecne informace, uvodni zpravy
 set "CYAN=%ESC%[36m"     REM Pro debugovaci zpravy
 set "GREY=%ESC%[90m"     REM Pro mene dulezite, "tiche" zpravy
-
+color 01
 echo %BLUE%--- Spoustim update.bat ---%RESET%
 set "GAME_PATH=%~1"
 set "PLATFORM_VERSION=%~2"
@@ -34,9 +34,7 @@ echo %BLUE%Odstranuji predchozi instalaci hry z "%GAME_PATH%"...%RESET%
 rmdir /s /q "%GAME_PATH%" >nul 2>&1
 
 echo %BLUE%Rozbaluji launcher.rar do docasne slozky...%RESET%
-color 01
 rar.exe x download\launcher.rar update\
-color 07
 echo %BLUE%Odstranuji stahovaci slozku "download"...%RESET%
 rmdir download /s /q >nul 2>&1
 
